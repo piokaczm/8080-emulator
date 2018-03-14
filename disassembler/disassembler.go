@@ -67,7 +67,7 @@ func decodeSingleHex(hex string, buf *bytes.Buffer) (*instruction, error) {
 
 	// read args
 	if in.hasArgs() {
-		for i := 0; i < in.size-1; i++ {
+		for i := in.size - 2; i >= 0; i-- {
 			in.args[i] = singleByteToHex(buf)
 		}
 	}
