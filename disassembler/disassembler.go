@@ -1,278 +1,78 @@
 package disassembler
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"log"
+)
 
-var opcodes = map[string]Instruction{
-	"00": Instruction{"NOP", 1, "", ""},
-	"01": Instruction{"LXI B,D16", 3, "B &lt;- byte 3, C &lt;- byte 2", ""},
-	"02": Instruction{"STAX B", 1, "(BC) &lt;- A", ""},
-	"03": Instruction{"INX B", 1, "BC &lt;- BC+1", ""},
-	"04": Instruction{"INR B", 1, "Z, S, P, AC", "B &lt;- B+1"},
-	"05": Instruction{"DCR B", 1, "Z, S, P, AC", "B &lt;- B-1"},
-	"06": Instruction{"MVI B, D8", 2, "B &lt;- byte 2", ""},
-	"07": Instruction{"RLC", 1, "CY", "A = A &lt;&lt; 1; bit 0 = prev bit 7; CY = prev bit 7"},
-	"08": Instruction{"-", 0, "", ""},
-	"09": Instruction{"DAD B", 1, "CY", "HL = HL + BC"},
-	"0a": Instruction{"LDAX B", 1, "A &lt;- (BC)", ""},
-	"0b": Instruction{"DCX B", 1, "BC = BC-1", ""},
-	"0c": Instruction{"INR C", 1, "Z, S, P, AC", "C &lt;- C+1"},
-	"0d": Instruction{"DCR C", 1, "Z, S, P, AC", "C &lt;-C-1"},
-	"0e": Instruction{"MVI C,D8", 2, "C &lt;- byte 2", ""},
-	"0f": Instruction{"RRC", 1, "CY", "A = A &gt;&gt; 1; bit 7 = prev bit 0; CY = prev bit 0"},
-	"10": Instruction{"-", 0, "", ""},
-	"11": Instruction{"LXI D,D16", 3, "D &lt;- byte 3, E &lt;- byte 2", ""},
-	"12": Instruction{"STAX D", 1, "(DE) &lt;- A", ""},
-	"13": Instruction{"INX D", 1, "DE &lt;- DE + 1", ""},
-	"14": Instruction{"INR D", 1, "Z, S, P, AC", "D &lt;- D+1"},
-	"15": Instruction{"DCR D", 1, "Z, S, P, AC", "D &lt;- D-1"},
-	"16": Instruction{"MVI D, D8", 2, "D &lt;- byte 2", ""},
-	"17": Instruction{"RAL", 1, "CY", "A = A &lt;&lt; 1; bit 0 = prev CY; CY = prev bit 7"},
-	"18": Instruction{"-", 0, "", ""},
-	"19": Instruction{"DAD D", 1, "CY", "HL = HL + DE"},
-	"1a": Instruction{"LDAX D", 1, "A &lt;- (DE)", ""},
-	"1b": Instruction{"DCX D", 1, "DE = DE-1", ""},
-	"1c": Instruction{"INR E", 1, "Z, S, P, AC", "E &lt;-E+1"},
-	"1d": Instruction{"DCR E", 1, "Z, S, P, AC", "E &lt;- E-1"},
-	"1e": Instruction{"MVI E,D8", 2, "E &lt;- byte 2", ""},
-	"1f": Instruction{"RAR", 1, "CY", "A = A &gt;&gt; 1; bit 7 = prev bit 7; CY = prev bit 0"},
-	"20": Instruction{"RIM", 1, "special", ""},
-	"21": Instruction{"LXI H,D16", 3, "H &lt;- byte 3, L &lt;- byte 2", ""},
-	"22": Instruction{"SHLD adr", 3, "(adr) &lt;-L; (adr+1)&lt;-H", ""},
-	"23": Instruction{"INX H", 1, "HL &lt;- HL + 1", ""},
-	"24": Instruction{"INR H", 1, "Z, S, P, AC", "H &lt;- H+1"},
-	"25": Instruction{"DCR H", 1, "Z, S, P, AC", "H &lt;- H-1"},
-	"26": Instruction{"MVI H,D8", 2, "L &lt;- byte 2", ""},
-	"27": Instruction{"DAA", 1, "special", ""},
-	"28": Instruction{"-", 0, "", ""},
-	"29": Instruction{"DAD H", 1, "CY", "HL = HL + HI"},
-	"2a": Instruction{"LHLD adr", 3, "L &lt;- (adr); H&lt;-(adr+1)", ""},
-	"2b": Instruction{"DCX H", 1, "HL = HL-1", ""},
-	"2c": Instruction{"INR L", 1, "Z, S, P, AC", "L &lt;- L+1"},
-	"2d": Instruction{"DCR L", 1, "Z, S, P, AC", "L &lt;- L-1"},
-	"2e": Instruction{"MVI L, D8", 2, "L &lt;- byte 2", ""},
-	"2f": Instruction{"CMA", 1, "A &lt;- !A", ""},
-	"30": Instruction{"SIM", 1, "special", ""},
-	"31": Instruction{"LXI SP, D16", 3, "SP.hi &lt;- byte 3, SP.lo &lt;- byte 2", ""},
-	"32": Instruction{"STA adr", 3, "(adr) &lt;- A", ""},
-	"33": Instruction{"INX SP", 1, "SP = SP + 1", ""},
-	"34": Instruction{"INR M", 1, "Z, S, P, AC", "(HL) &lt;- (HL)+1"},
-	"35": Instruction{"DCR M", 1, "Z, S, P, AC", "(HL) &lt;- (HL)-1"},
-	"36": Instruction{"MVI M,D8", 2, "(HL) &lt;- byte 2", ""},
-	"37": Instruction{"STC", 1, "CY", "CY = 1"},
-	"38": Instruction{"-", 0, "", ""},
-	"39": Instruction{"DAD SP", 1, "CY", "HL = HL + SP"},
-	"3a": Instruction{"LDA adr", 3, "A &lt;- (adr)", ""},
-	"3b": Instruction{"DCX SP", 1, "SP = SP-1", ""},
-	"3c": Instruction{"INR A", 1, "Z, S, P, AC", "A &lt;- A+1"},
-	"3d": Instruction{"DCR A", 1, "Z, S, P, AC", "A &lt;- A-1"},
-	"3e": Instruction{"MVI A,D8", 2, "A &lt;- byte 2", ""},
-	"3f": Instruction{"CMC", 1, "CY", "CY=!CY"},
-	"40": Instruction{"MOV B,B", 1, "B &lt;- B", ""},
-	"41": Instruction{"MOV B,C", 1, "B &lt;- C", ""},
-	"42": Instruction{"MOV B,D", 1, "B &lt;- D", ""},
-	"43": Instruction{"MOV B,E", 1, "B &lt;- E", ""},
-	"44": Instruction{"MOV B,H", 1, "B &lt;- H", ""},
-	"45": Instruction{"MOV B,L", 1, "B &lt;- L", ""},
-	"46": Instruction{"MOV B,M", 1, "B &lt;- (HL)", ""},
-	"47": Instruction{"MOV B,A", 1, "B &lt;- A", ""},
-	"48": Instruction{"MOV C,B", 1, "C &lt;- B", ""},
-	"49": Instruction{"MOV C,C", 1, "C &lt;- C", ""},
-	"4a": Instruction{"MOV C,D", 1, "C &lt;- D", ""},
-	"4b": Instruction{"MOV C,E", 1, "C &lt;- E", ""},
-	"4c": Instruction{"MOV C,H", 1, "C &lt;- H", ""},
-	"4d": Instruction{"MOV C,L", 1, "C &lt;- L", ""},
-	"4e": Instruction{"MOV C,M", 1, "C &lt;- (HL)", ""},
-	"4f": Instruction{"MOV C,A", 1, "C &lt;- A", ""},
-	"50": Instruction{"MOV D,B", 1, "D &lt;- B", ""},
-	"51": Instruction{"MOV D,C", 1, "D &lt;- C", ""},
-	"52": Instruction{"MOV D,D", 1, "D &lt;- D", ""},
-	"53": Instruction{"MOV D,E", 1, "D &lt;- E", ""},
-	"54": Instruction{"MOV D,H", 1, "D &lt;- H", ""},
-	"55": Instruction{"MOV D,L", 1, "D &lt;- L", ""},
-	"56": Instruction{"MOV D,M", 1, "D &lt;- (HL)", ""},
-	"57": Instruction{"MOV D,A", 1, "D &lt;- A", ""},
-	"58": Instruction{"MOV E,B", 1, " ", "E &lt;- B"},
-	"59": Instruction{"MOV E,C", 1, "E &lt;- C", ""},
-	"5a": Instruction{"MOV E,D", 1, "E &lt;- D", ""},
-	"5b": Instruction{"MOV E,E", 1, "E &lt;- E", ""},
-	"5c": Instruction{"MOV E,H", 1, "E &lt;- H", ""},
-	"5d": Instruction{"MOV E,L", 1, "E &lt;- L", ""},
-	"5e": Instruction{"MOV E,M", 1, "E &lt;- (HL)", ""},
-	"5f": Instruction{"MOV E,A", 1, "E &lt;- A", ""},
-	"60": Instruction{"MOV H,B", 1, "H &lt;- B", ""},
-	"61": Instruction{"MOV H,C", 1, "H &lt;- C", ""},
-	"62": Instruction{"MOV H,D", 1, "H &lt;- D", ""},
-	"63": Instruction{"MOV H,E", 1, "H &lt;- E", ""},
-	"64": Instruction{"MOV H,H", 1, "H &lt;- H", ""},
-	"65": Instruction{"MOV H,L", 1, "H &lt;- L", ""},
-	"66": Instruction{"MOV H,M", 1, "H &lt;- (HL)", ""},
-	"67": Instruction{"MOV H,A", 1, "H &lt;- A", ""},
-	"68": Instruction{"MOV L,B", 1, "L &lt;- B", ""},
-	"69": Instruction{"MOV L,C", 1, "L &lt;- C", ""},
-	"6a": Instruction{"MOV L,D", 1, "L &lt;- D", ""},
-	"6b": Instruction{"MOV L,E", 1, "L &lt;- E", ""},
-	"6c": Instruction{"MOV L,H", 1, "L &lt;- H", ""},
-	"6d": Instruction{"MOV L,L", 1, "L &lt;- L", ""},
-	"6e": Instruction{"MOV L,M", 1, "L &lt;- (HL)", ""},
-	"6f": Instruction{"MOV L,A", 1, "L &lt;- A", ""},
-	"70": Instruction{"MOV M,B", 1, "(HL) &lt;- B", ""},
-	"71": Instruction{"MOV M,C", 1, "(HL) &lt;- C", ""},
-	"72": Instruction{"MOV M,D", 1, "(HL) &lt;- D", ""},
-	"73": Instruction{"MOV M,E", 1, "(HL) &lt;- E", ""},
-	"74": Instruction{"MOV M,H", 1, "(HL) &lt;- H", ""},
-	"75": Instruction{"MOV M,L", 1, "(HL) &lt;- L", ""},
-	"76": Instruction{"HLT", 1, "special", ""},
-	"77": Instruction{"MOV M,A", 1, "(HL) &lt;- C", ""},
-	"78": Instruction{"MOV A,B", 1, "A &lt;- B", ""},
-	"79": Instruction{"MOV A,C", 1, "A &lt;- C", ""},
-	"7a": Instruction{"MOV A,D", 1, "A &lt;- D", ""},
-	"7b": Instruction{"MOV A,E", 1, "A &lt;- E", ""},
-	"7c": Instruction{"MOV A,H", 1, "A &lt;- H", ""},
-	"7d": Instruction{"MOV A,L", 1, "A &lt;- L", ""},
-	"7e": Instruction{"MOV A,M", 1, "A &lt;- (HL)", ""},
-	"7f": Instruction{"MOV A,A", 1, "A &lt;- A", ""},
-	"80": Instruction{"ADD B", 1, "Z, S, P, CY, AC", "A &lt;- A + B"},
-	"81": Instruction{"ADD C", 1, "Z, S, P, CY, AC", "A &lt;- A + C"},
-	"82": Instruction{"ADD D", 1, "Z, S, P, CY, AC", "A &lt;- A + D"},
-	"83": Instruction{"ADD E", 1, "Z, S, P, CY, AC", "A &lt;- A + E"},
-	"84": Instruction{"ADD H", 1, "Z, S, P, CY, AC", "A &lt;- A + H"},
-	"85": Instruction{"ADD L", 1, "Z, S, P, CY, AC", "A &lt;- A + L"},
-	"86": Instruction{"ADD M", 1, "Z, S, P, CY, AC", "A &lt;- A + (HL)"},
-	"87": Instruction{"ADD A", 1, "Z, S, P, CY, AC", "A &lt;- A + A"},
-	"88": Instruction{"ADC B", 1, "Z, S, P, CY, AC", "A &lt;- A + B + CY"},
-	"89": Instruction{"ADC C", 1, "Z, S, P, CY, AC", "A &lt;- A + C + CY"},
-	"8a": Instruction{"ADC D", 1, "Z, S, P, CY, AC", "A &lt;- A + D + CY"},
-	"8b": Instruction{"ADC E", 1, "Z, S, P, CY, AC", "A &lt;- A + E + CY"},
-	"8c": Instruction{"ADC H", 1, "Z, S, P, CY, AC", "A &lt;- A + H + CY"},
-	"8d": Instruction{"ADC L", 1, "Z, S, P, CY, AC", "A &lt;- A + L + CY"},
-	"8e": Instruction{"ADC M", 1, "Z, S, P, CY, AC", "A &lt;- A + (HL) + CY"},
-	"8f": Instruction{"ADC A", 1, "Z, S, P, CY, AC", "A &lt;- A + A + CY"},
-	"90": Instruction{"SUB B", 1, "Z, S, P, CY, AC", "A &lt;- A - B"},
-	"91": Instruction{"SUB C", 1, "Z, S, P, CY, AC", "A &lt;- A - C"},
-	"92": Instruction{"SUB D", 1, "Z, S, P, CY, AC", "A &lt;- A + D"},
-	"93": Instruction{"SUB E", 1, "Z, S, P, CY, AC", "A &lt;- A - E"},
-	"94": Instruction{"SUB H", 1, "Z, S, P, CY, AC", "A &lt;- A + H"},
-	"95": Instruction{"SUB L", 1, "Z, S, P, CY, AC", "A &lt;- A - L"},
-	"96": Instruction{"SUB M", 1, "Z, S, P, CY, AC", "A &lt;- A + (HL)"},
-	"97": Instruction{"SUB A", 1, "Z, S, P, CY, AC", "A &lt;- A - A"},
-	"98": Instruction{"SBB B", 1, "Z, S, P, CY, AC", "A &lt;- A - B - CY"},
-	"99": Instruction{"SBB C", 1, "Z, S, P, CY, AC", "A &lt;- A - C - CY"},
-	"9a": Instruction{"SBB D", 1, "Z, S, P, CY, AC", "A &lt;- A - D - CY"},
-	"9b": Instruction{"SBB E", 1, "Z, S, P, CY, AC", "A &lt;- A - E - CY"},
-	"9c": Instruction{"SBB H", 1, "Z, S, P, CY, AC", "A &lt;- A - H - CY"},
-	"9d": Instruction{"SBB L", 1, "Z, S, P, CY, AC", "A &lt;- A - L - CY"},
-	"9e": Instruction{"SBB M", 1, "Z, S, P, CY, AC", "A &lt;- A - (HL) - CY"},
-	"9f": Instruction{"SBB A", 1, "Z, S, P, CY, AC", "A &lt;- A - A - CY"},
-	"a0": Instruction{"ANA B", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; B"},
-	"a1": Instruction{"ANA C", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; C"},
-	"a2": Instruction{"ANA D", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; D"},
-	"a3": Instruction{"ANA E", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; E"},
-	"a4": Instruction{"ANA H", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; H"},
-	"a5": Instruction{"ANA L", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; L"},
-	"a6": Instruction{"ANA M", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; (HL)"},
-	"a7": Instruction{"ANA A", 1, "Z, S, P, CY, AC", "A &lt;- A &amp; A"},
-	"a8": Instruction{"XRA B", 1, "Z, S, P, CY, AC", "A &lt;- A ^ B"},
-	"a9": Instruction{"XRA C", 1, "Z, S, P, CY, AC", "A &lt;- A ^ C"},
-	"aa": Instruction{"XRA D", 1, "Z, S, P, CY, AC", "A &lt;- A ^ D"},
-	"ab": Instruction{"XRA E", 1, "Z, S, P, CY, AC", "A &lt;- A ^ E"},
-	"ac": Instruction{"XRA H", 1, "Z, S, P, CY, AC", "A &lt;- A ^ H"},
-	"ad": Instruction{"XRA L", 1, "Z, S, P, CY, AC", "A &lt;- A ^ L"},
-	"ae": Instruction{"XRA M", 1, "Z, S, P, CY, AC", "A &lt;- A ^ (HL)"},
-	"af": Instruction{"XRA A", 1, "Z, S, P, CY, AC", "A &lt;- A ^ A"},
-	"b0": Instruction{"ORA B", 1, "Z, S, P, CY, AC", "A &lt;- A | B"},
-	"b1": Instruction{"ORA C", 1, "Z, S, P, CY, AC", "A &lt;- A | C"},
-	"b2": Instruction{"ORA D", 1, "Z, S, P, CY, AC", "A &lt;- A | D"},
-	"b3": Instruction{"ORA E", 1, "Z, S, P, CY, AC", "A &lt;- A | E"},
-	"b4": Instruction{"ORA H", 1, "Z, S, P, CY, AC", "A &lt;- A | H"},
-	"b5": Instruction{"ORA L", 1, "Z, S, P, CY, AC", "A &lt;- A | L"},
-	"b6": Instruction{"ORA M", 1, "Z, S, P, CY, AC", "A &lt;- A | (HL)"},
-	"b7": Instruction{"ORA A", 1, "Z, S, P, CY, AC", "A &lt;- A | A"},
-	"b8": Instruction{"CMP B", 1, "Z, S, P, CY, AC", "A - B"},
-	"b9": Instruction{"CMP C", 1, "Z, S, P, CY, AC", "A - C"},
-	"ba": Instruction{"CMP D", 1, "Z, S, P, CY, AC", "A - D"},
-	"bb": Instruction{"CMP E", 1, "Z, S, P, CY, AC", "A - E"},
-	"bc": Instruction{"CMP H", 1, "Z, S, P, CY, AC", "A - H"},
-	"bd": Instruction{"CMP L", 1, "Z, S, P, CY, AC", "A - L"},
-	"be": Instruction{"CMP M", 1, "Z, S, P, CY, AC", "A - (HL)"},
-	"bf": Instruction{"CMP A", 1, "Z, S, P, CY, AC", "A - A"},
-	"c0": Instruction{"RNZ", 1, "if NZ, RET", ""},
-	"c1": Instruction{"POP B", 1, "C &lt;- (sp); B &lt;- (sp+1); sp &lt;- sp+2", ""},
-	"c2": Instruction{"JNZ adr", 3, "if NZ, PC &lt;- adr", ""},
-	"c3": Instruction{"JMP adr", 3, "PC &lt;= adr", ""},
-	"c4": Instruction{"CNZ adr", 3, "if NZ, CALL adr", ""},
-	"c5": Instruction{"PUSH B", 1, "(sp-2)&lt;-C; (sp-1)&lt;-B; sp &lt;- sp - 2", ""},
-	"c6": Instruction{"ADI D8", 2, "Z, S, P, CY, AC", "A &lt;- A + byte"},
-	"c7": Instruction{"RST 0", 1, "CALL $0", ""},
-	"c8": Instruction{"RZ", 1, "if Z, RET", ""},
-	"c9": Instruction{"RET", 1, "PC.lo &lt;- (sp); PC.hi&lt;-(sp+1); SP &lt;- SP+2", ""},
-	"ca": Instruction{"JZ adr", 3, "if Z, PC &lt;- adr", ""},
-	"cb": Instruction{"-", 0, "", ""},
-	"cc": Instruction{"CZ adr", 3, "if Z, CALL adr", ""},
-	"cd": Instruction{"CALL adr", 3, "(SP-1)&lt;-PC.hi;(SP-2)&lt;-PC.lo;SP&lt;-SP+2;PC=adr", ""},
-	"ce": Instruction{"ACI D8", 2, "Z, S, P, CY, AC", "A &lt;- A + data + CY"},
-	"cf": Instruction{"RST 1", 1, "CALL $8", ""},
-	"d0": Instruction{"RNC", 1, "if NCY, RET", ""},
-	"d1": Instruction{"POP D", 1, "E &lt;- (sp); D &lt;- (sp+1); sp &lt;- sp+2", ""},
-	"d2": Instruction{"JNC adr", 3, "if NCY, PC&lt;-adr", ""},
-	"d3": Instruction{"OUT D8", 2, "special", ""},
-	"d4": Instruction{"CNC adr", 3, "if NCY, CALL adr", ""},
-	"d5": Instruction{"PUSH D", 1, "(sp-2)&lt;-E; (sp-1)&lt;-D; sp &lt;- sp - 2", ""},
-	"d6": Instruction{"SUI D8", 2, "Z, S, P, CY, AC", "A &lt;- A - data"},
-	"d7": Instruction{"RST 2", 1, "CALL $10", ""},
-	"d8": Instruction{"RC", 1, "if CY, RET", ""},
-	"d9": Instruction{"-", 0, "", ""},
-	"da": Instruction{"JC adr", 3, "if CY, PC&lt;-adr", ""},
-	"db": Instruction{"IN D8", 2, "special", ""},
-	"dc": Instruction{"CC adr", 3, "if CY, CALL adr", ""},
-	"dd": Instruction{"-", 0, "", ""},
-	"de": Instruction{"SBI D8", 2, "Z, S, P, CY, AC", "A &lt;- A - data - CY"},
-	"df": Instruction{"RST 3", 1, "CALL $18", ""},
-	"e0": Instruction{"RPO", 1, "if PO, RET", ""},
-	"e1": Instruction{"POP H", 1, "L &lt;- (sp); H &lt;- (sp+1); sp &lt;- sp+2", ""},
-	"e2": Instruction{"JPO adr", 3, "if PO, PC &lt;- adr", ""},
-	"e3": Instruction{"XTHL", 1, "L &lt;-&gt; (SP); H &lt;-&gt; (SP+1) ", ""},
-	"e4": Instruction{"CPO adr", 3, "if PO, CALL adr", ""},
-	"e5": Instruction{"PUSH H", 1, "(sp-2)&lt;-L; (sp-1)&lt;-H; sp &lt;- sp - 2", ""},
-	"e6": Instruction{"ANI D8", 2, "Z, S, P, CY, AC", "A &lt;- A &amp; data"},
-	"e7": Instruction{"RST 4", 1, "CALL $20", ""},
-	"e8": Instruction{"RPE", 1, "if PE, RET", ""},
-	"e9": Instruction{"PCHL", 1, "PC.hi &lt;- H; PC.lo &lt;- L", ""},
-	"ea": Instruction{"JPE adr", 3, "if PE, PC &lt;- adr", ""},
-	"eb": Instruction{"XCHG", 1, "H &lt;-&gt; D; L &lt;-&gt; E", ""},
-	"ec": Instruction{"CPE adr", 3, "if PE, CALL adr", ""},
-	"ed": Instruction{"-", 0, "", ""},
-	"ee": Instruction{"XRI D8", 2, "Z, S, P, CY, AC", "A &lt;- A ^ data"},
-	"ef": Instruction{"RST 5", 1, "CALL $28", ""},
-	"f0": Instruction{"RP", 1, "if P, RET", ""},
-	"f1": Instruction{"POP PSW", 1, "flags &lt;- (sp); A &lt;- (sp+1); sp &lt;- sp+2", ""},
-	"f2": Instruction{"JP adr", 3, "if P=1 PC &lt;- adr", ""},
-	"f3": Instruction{"DI", 1, "special", ""},
-	"f4": Instruction{"CP adr", 3, "if P, PC &lt;- adr", ""},
-	"f5": Instruction{"PUSH PSW", 1, "(sp-2)&lt;-flags; (sp-1)&lt;-A; sp &lt;- sp - 2", ""},
-	"f6": Instruction{"ORI D8", 2, "Z, S, P, CY, AC", "A &lt;- A | data"},
-	"f7": Instruction{"RST 6", 1, "CALL $30", ""},
-	"f8": Instruction{"RM", 1, "if M, RET", ""},
-	"f9": Instruction{"SPHL", 1, "SP=HL", ""},
-	"fa": Instruction{"JM adr", 3, "if M, PC &lt;- adr", ""},
-	"fb": Instruction{"EI", 1, "special", ""},
-	"fc": Instruction{"CM adr", 3, "if M, CALL adr", ""},
-	"fd": Instruction{"-", 0, "", ""},
-	"fe": Instruction{"CPI D8", 2, "Z, S, P, CY, AC", "A - data"},
-	"ff": Instruction{"RST 7", 1, "CALL $38", ""},
+type instruction struct {
+	name     string
+	size     int
+	flags    string
+	function string
+	args     []string
 }
 
-// Instruction is a decoded hex value of an Instruction
-type Instruction struct {
-	Name     string
-	Size     int
-	Flags    string
-	Function string
+// Decode reads provided data and disasseles hex values to 8080 instructions
+func Decode(data []byte) {
+	buffer := bytes.NewBuffer(data)
+
+	for {
+		singleByte := singleByteToHex(buffer)
+		if singleByte == "" {
+			break
+		}
+		inst, err := decodeSingleHex(singleByte, buffer)
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+		inst.print()
+	}
 }
 
-func Decode(hex string) (*Instruction, error) {
-	instr, ok := opcodes[hex]
+func newInstruction(name string, size int, flags, function string) *instruction {
+	in := &instruction{
+		name:     name,
+		size:     size,
+		flags:    flags,
+		function: function,
+	}
+
+	if in.size > 1 {
+		in.args = make([]string, in.size-1)
+	}
+
+	return in
+}
+
+func (in *instruction) hasArgs() bool {
+	return in.size > 1
+}
+
+func (in *instruction) print() {
+	if in.hasArgs() {
+		fmt.Printf("%s | args: %v\n", in.name, in.args)
+	} else {
+		fmt.Printf("%s\n", in.name)
+	}
+}
+
+func decodeSingleHex(hex string, buf *bytes.Buffer) (*instruction, error) {
+	in, ok := opcodes[hex]
 	if !ok {
 		return nil, fmt.Errorf("no opcode %q found", hex)
 	}
-	return &instr, nil
+
+	// read args
+	if in.hasArgs() {
+		for i := 0; i < in.size-1; i++ {
+			in.args[i] = singleByteToHex(buf)
+		}
+	}
+	return in, nil
+}
+
+func singleByteToHex(buf *bytes.Buffer) string {
+	return fmt.Sprintf("%x", buf.Next(1))
 }
