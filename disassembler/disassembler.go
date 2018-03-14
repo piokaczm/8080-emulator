@@ -3,6 +3,7 @@ package disassembler
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 )
 
 type instruction struct {
@@ -16,6 +17,7 @@ type instruction struct {
 // Decode reads provided data and disasseles hex values to 8080 instructions
 func Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
+	var ordinal int64
 
 	for {
 		singleByte := singleByteToHex(buffer)
@@ -26,10 +28,15 @@ func Decode(data []byte) error {
 		if err != nil {
 			return err
 		}
-		inst.print()
+		inst.print(ordinal)
+		ordinal = incrementOrdinal(ordinal, inst)
 	}
 
 	return nil
+}
+
+func incrementOrdinal(ordinal int64, inst *instruction) int64 {
+	return ordinal + 1 + int64(len(inst.args)) // ordinal + instruction (1) + args
 }
 
 func newInstruction(name string, size int, flags, function string) *instruction {
@@ -51,11 +58,12 @@ func (in *instruction) hasArgs() bool {
 	return in.size > 1
 }
 
-func (in *instruction) print() {
+func (in *instruction) print(ordinal int64) {
+	ordinalHex := strconv.FormatInt(ordinal, 16)
 	if in.hasArgs() {
-		fmt.Printf("%s | args: %v\n", in.name, in.args)
+		fmt.Printf("[%s] %s | args: %v\n", ordinalHex, in.name, in.args)
 	} else {
-		fmt.Printf("%s\n", in.name)
+		fmt.Printf("[%s] %s\n", ordinalHex, in.name)
 	}
 }
 
