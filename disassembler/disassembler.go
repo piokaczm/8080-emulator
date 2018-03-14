@@ -3,7 +3,6 @@ package disassembler
 import (
 	"bytes"
 	"fmt"
-	"log"
 )
 
 type instruction struct {
@@ -15,7 +14,7 @@ type instruction struct {
 }
 
 // Decode reads provided data and disasseles hex values to 8080 instructions
-func Decode(data []byte) {
+func Decode(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 
 	for {
@@ -25,10 +24,12 @@ func Decode(data []byte) {
 		}
 		inst, err := decodeSingleHex(singleByte, buffer)
 		if err != nil {
-			log.Fatalf(err.Error())
+			return err
 		}
 		inst.print()
 	}
+
+	return nil
 }
 
 func newInstruction(name string, size int, flags, function string) *instruction {
