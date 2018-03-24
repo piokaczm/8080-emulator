@@ -1,6 +1,9 @@
 package eighty_eighty
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 const (
 	// registers fast access
@@ -33,9 +36,9 @@ type state struct {
 }
 
 type condCodes struct {
-	z   uint8
-	s   uint8
-	p   uint8
+	z   uint8 // zero flag -> if result of operation is equal to 0 it's set to 1
+	s   uint8 // sign flag -> set to 1 when bit 7 is set
+	p   uint8 // parity flag -> check if results 1 bits count is even or odd
 	cy  uint8
 	ac  uint8
 	pad uint8
@@ -189,4 +192,38 @@ func (s *state) mvi(val uint8, reg int) {
 
 func addr(a, b uint8) uint16 {
 	return uint16(a)<<8 | uint16(b)
+}
+
+// condition codes checks
+
+func (c *condCodes) setZ(result uint16) {
+	if result&0xff == 0 {
+		c.z = 1
+	} else {
+		c.z = 0
+	}
+}
+
+func (c *condCodes) setS(result uint16) {
+	if result&(1<<7) == 0 {
+		c.s = 1
+	} else {
+		c.s = 0
+	}
+}
+
+func (c *condCodes) checkP(result uint16) {
+	var ones int
+
+	for _, char := range strconv.FormatInt(result, 2) {
+		if string(char) == "1" {
+			ones++
+		}
+	}
+
+	if ones%2 == 0 {
+		c.p = 1
+	} else {
+		c.p = 0
+	}
 }
