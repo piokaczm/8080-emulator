@@ -8,6 +8,134 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestINR(t *testing.T) {
+	t.Run("incrementing register", func(t *testing.T) {
+		ee := New()
+		ee.b = 0x00
+
+		ee.inr(b)
+		assert.Equal(t, uint8(0x01), ee.b, "increments register by one")
+	})
+
+	t.Run("setting zero flag", func(t *testing.T) {
+		t.Run("when result equals zero", func(t *testing.T) {
+			ee := New()
+			ee.b = 0xff
+
+			ee.inr(b)
+			assert.Equal(t, uint8(0x01), ee.cc.z, "sets zero flag to one")
+		})
+
+		t.Run("when result bigger than zero", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x00
+
+			ee.inr(b)
+			assert.Zero(t, ee.cc.z, "keeps zero flag equal to zero")
+		})
+	})
+
+	t.Run("setting sign flag", func(t *testing.T) {
+		t.Run("when 7th bit set", func(t *testing.T) {
+			ee := New()
+			ee.b = 0xfa
+
+			ee.inr(b)
+			assert.Equal(t, uint8(0x01), ee.cc.s, "sets sign flag to one")
+		})
+
+		t.Run("when 7th bit not set", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x00
+
+			ee.inr(b)
+			assert.Zero(t, ee.cc.s, "keeps sign flag equal to zero")
+		})
+	})
+
+	t.Run("setting parity flag", func(t *testing.T) {
+		t.Run("when even 1s count", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x08
+
+			ee.inr(b)
+			assert.Equal(t, uint8(0x01), ee.cc.p, "sets parity flag to one")
+		})
+
+		t.Run("when odd 1s count", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x0c
+
+			ee.inr(b)
+			assert.Zero(t, ee.cc.p, "keeps parity flag equal to zero")
+		})
+	})
+}
+
+func TestDCR(t *testing.T) {
+	t.Run("decrementing register", func(t *testing.T) {
+		ee := New()
+		ee.b = 0x02
+
+		ee.dcr(b)
+		assert.Equal(t, uint8(0x01), ee.b, "decrements register by one")
+	})
+
+	t.Run("setting zero flag", func(t *testing.T) {
+		t.Run("when result equals zero", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x01
+
+			ee.dcr(b)
+			assert.Equal(t, uint8(0x01), ee.cc.z, "sets zero flag to one")
+		})
+
+		t.Run("when result bigger than zero", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x00
+
+			ee.dcr(b)
+			assert.Zero(t, ee.cc.z, "keeps zero flag equal to zero")
+		})
+	})
+
+	t.Run("setting sign flag", func(t *testing.T) {
+		t.Run("when 7th bit set", func(t *testing.T) {
+			ee := New()
+			ee.b = 0xfa
+
+			ee.dcr(b)
+			assert.Equal(t, uint8(0x01), ee.cc.s, "sets sign flag to one")
+		})
+
+		t.Run("when 7th bit not set", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x01
+
+			ee.dcr(b)
+			assert.Zero(t, ee.cc.s, "keeps sign flag equal to zero")
+		})
+	})
+
+	t.Run("setting parity flag", func(t *testing.T) {
+		t.Run("when even 1s count", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x0a
+
+			ee.dcr(b)
+			assert.Equal(t, uint8(0x01), ee.cc.p, "sets parity flag to one")
+		})
+
+		t.Run("when odd 1s count", func(t *testing.T) {
+			ee := New()
+			ee.b = 0x0e
+
+			ee.dcr(b)
+			assert.Zero(t, ee.cc.p, "keeps parity flag equal to zero")
+		})
+	})
+}
+
 func TestEmulation(t *testing.T) {
 	t.Run("when NOP", func(t *testing.T) {
 		ee := New()
@@ -238,6 +366,25 @@ func TestConditionCodesChecks(t *testing.T) {
 			ee.cc.setP(result)
 
 			assert.Zero(t, ee.cc.p, "sets zero flag to zero")
+		})
+	})
+
+	t.Run("carry bit check", func(t *testing.T) {
+		ee := New()
+
+		t.Run("when result produces carry bit", func(t *testing.T) {
+			var result uint16 = 256
+			ee.cc.setCY(result)
+
+			assert.Equal(t, uint8(1), ee.cc.cy, "sets parity flag to one")
+		})
+
+		t.Run("when result does not produce carry bit", func(t *testing.T) {
+			var result uint16 = 255
+			ee.cc.cy = 1
+			ee.cc.setCY(result)
+
+			assert.Zero(t, ee.cc.cy, "sets zero flag to zero")
 		})
 	})
 }

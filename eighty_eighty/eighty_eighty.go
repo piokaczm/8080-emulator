@@ -39,8 +39,8 @@ type condCodes struct {
 	z   uint8 // zero flag -> if result of operation is equal to 0 it's set to 1
 	s   uint8 // sign flag -> set to 1 when bit 7 is set
 	p   uint8 // parity flag -> check if results 1 bits count is even or odd
-	cy  uint8
-	ac  uint8
+	cy  uint8 // carry bit flag -> check if result requires carrying a bit of a higher order
+	ac  uint8 // auxiliary carry bit; leaving it for now
 	pad uint8
 }
 
@@ -65,8 +65,10 @@ func (s *state) Emulate() error {
 		s.stax(bc)
 	case 0x03: // INX B
 		s.inx(bc)
-	case 0x04: // INR B
+	case 0x04: // INR B; Z, S, P, AC
+		s.inr(b)
 	case 0x05: // DCR B
+		s.dcr(b)
 	case 0x06: // MVI B, D8
 		s.mvi(opCode[1], b)
 	case 0x07: // RLC
@@ -104,6 +106,36 @@ func (s *state) Emulate() error {
 	}
 
 	return nil
+}
+
+// inr increments value of single register and sets proper Z, S and P condition codes
+func (s *state) inr(reg int) {
+	var result uint16
+
+	switch reg {
+	case b:
+		result = uint16(s.b) + 1
+		s.b++
+	}
+
+	s.cc.setZ(result)
+	s.cc.setS(result)
+	s.cc.setP(result)
+}
+
+// dcr decrements value of single register and sets proper Z, S and P condition codes
+func (s *state) dcr(reg int) {
+	var result uint16
+
+	switch reg {
+	case b:
+		result = uint16(s.b) - 1
+		s.b--
+	}
+
+	s.cc.setZ(result)
+	s.cc.setS(result)
+	s.cc.setP(result)
 }
 
 // inx increments values stored in provided registers pair
@@ -226,5 +258,13 @@ func (c *condCodes) setP(result uint16) {
 		c.p = 1
 	} else {
 		c.p = 0
+	}
+}
+
+func (c *condCodes) setCY(result uint16) {
+	if result > 0xff {
+		c.cy = 1
+	} else {
+		c.cy = 0
 	}
 }
