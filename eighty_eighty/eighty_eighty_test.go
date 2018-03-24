@@ -134,6 +134,28 @@ func TestDCR(t *testing.T) {
 	})
 }
 
+func TestLXI(t *testing.T) {
+	ee := New()
+
+	pairs := []struct {
+		registersPair  int
+		firstRegister  *uint8
+		secondRegister *uint8
+	}{
+		{bc, &ee.b, &ee.c},
+		{de, &ee.d, &ee.e},
+	}
+
+	for _, testCase := range pairs {
+		ee.pc = 0
+
+		ee.lxi(0x01, 0x02, testCase.registersPair)
+		assert.Equal(t, uint8(0x01), *testCase.secondRegister, "sets 2nd byte to pair's first register")
+		assert.Equal(t, uint8(0x02), *testCase.firstRegister, "sets 3rd byte to pair's second register")
+		assert.Equal(t, uint16(2), ee.pc, "increments pc by two additional steps")
+	}
+}
+
 func TestEmulation(t *testing.T) {
 	t.Run("when NOP", func(t *testing.T) {
 		ee := New()
@@ -142,17 +164,6 @@ func TestEmulation(t *testing.T) {
 		err := ee.Emulate()
 		assert.Nil(t, err)
 		assert.Equal(t, uint16(1), ee.pc, "increments pc by one")
-	})
-
-	t.Run("when LXI B,D16", func(t *testing.T) {
-		ee := New()
-		ee.mem = []uint8{0x01, 0x00, 0x02}
-
-		err := ee.Emulate()
-		assert.Nil(t, err)
-		assert.Equal(t, uint8(0x00), ee.c, "sets 2nd byte to state's c")
-		assert.Equal(t, uint8(0x02), ee.b, "sets 3rd byte to state's b")
-		assert.Equal(t, uint16(3), ee.pc, "increments pc by three")
 	})
 
 	t.Run("when STAX B", func(t *testing.T) {
@@ -225,17 +236,6 @@ func TestEmulation(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint8(0x1f), ee.c, "sets register c to 2nd byte")
 		assert.Equal(t, uint16(2), ee.pc, "increments pc by two")
-	})
-
-	t.Run("when LXI D,D16", func(t *testing.T) {
-		ee := New()
-		ee.mem = []uint8{0x11, 0x00, 0x02}
-
-		err := ee.Emulate()
-		assert.Nil(t, err)
-		assert.Equal(t, uint8(0x00), ee.e, "sets 2nd byte to state's e")
-		assert.Equal(t, uint8(0x02), ee.d, "sets 3rd byte to state's d")
-		assert.Equal(t, uint16(3), ee.pc, "increments pc by three")
 	})
 
 	t.Run("when STAX D", func(t *testing.T) {
