@@ -204,18 +204,19 @@ func (c *condCodes) setZ(result uint16) {
 	}
 }
 
+// 	TODO: make sure it's not inverted
 func (c *condCodes) setS(result uint16) {
 	if result&(1<<7) == 0 {
-		c.s = 1
-	} else {
 		c.s = 0
+	} else {
+		c.s = 1
 	}
 }
 
-func (c *condCodes) checkP(result uint16) {
+func (c *condCodes) setP(result uint16) {
 	var ones int
 
-	for _, char := range strconv.FormatInt(result, 2) {
+	for _, char := range strconv.FormatInt(int64(result), 2) {
 		if string(char) == "1" {
 			ones++
 		}
