@@ -1,8 +1,6 @@
 package eighty_eighty
 
 import (
-	"log"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -300,92 +298,6 @@ func TestEmulation(t *testing.T) {
 		assert.Equal(t, uint8(0xff), ee.d, "decrements register d by one")
 		assert.Equal(t, uint8(0x00), ee.e, "decrements register e by one")
 		assert.Equal(t, uint16(1), ee.pc, "increments pc by one")
-	})
-}
-
-func TestConditionCodesChecks(t *testing.T) {
-	t.Run("zero check", func(t *testing.T) {
-		ee := New()
-
-		t.Run("when result equals zero", func(t *testing.T) {
-			var result uint16 = 0x00
-			ee.cc.setZ(result)
-
-			assert.Equal(t, uint8(1), ee.cc.z, "sets zero flag to one")
-		})
-
-		t.Run("when result does not equal zero", func(t *testing.T) {
-			var result uint16 = 0x01
-			ee.cc.z = 1
-			ee.cc.setZ(result)
-
-			assert.Zero(t, ee.cc.z, "sets zero flag to zero")
-		})
-	})
-
-	t.Run("sign check", func(t *testing.T) {
-		ee := New()
-
-		t.Run("when 7th bit is set", func(t *testing.T) {
-			var result uint16 = 0xff
-			ee.cc.setS(result)
-
-			assert.Equal(t, uint8(1), ee.cc.s, "sets sign flag to one")
-		})
-
-		t.Run("when 7th bit is not set", func(t *testing.T) {
-			var result uint16 = 0x00
-			ee.cc.s = 1
-			ee.cc.setS(result)
-
-			assert.Zero(t, ee.cc.s, "sets sing flag to zero")
-		})
-	})
-
-	t.Run("parity check", func(t *testing.T) {
-		ee := New()
-
-		t.Run("when 1s count is even", func(t *testing.T) {
-			val, err := strconv.ParseInt("1100", 2, 8)
-			if err != nil {
-				log.Fatalf("cant parse provided binary: %s", err.Error())
-			}
-			var result uint16 = uint16(val)
-			ee.cc.setP(result)
-
-			assert.Equal(t, uint8(1), ee.cc.p, "sets parity flag to one")
-		})
-
-		t.Run("when 1s count is odd", func(t *testing.T) {
-			val, err := strconv.ParseInt("1101", 2, 8)
-			if err != nil {
-				log.Fatalf("cant parse provided binary: %s", err.Error())
-			}
-			var result uint16 = uint16(val)
-			ee.cc.p = 1
-			ee.cc.setP(result)
-
-			assert.Zero(t, ee.cc.p, "sets zero flag to zero")
-		})
-	})
-
-	t.Run("carry bit check", func(t *testing.T) {
-		ee := New()
-
-		t.Run("when result produces carry bit", func(t *testing.T) {
-			var result uint16 = 256
-			ee.cc.setCY(result)
-
-			assert.Equal(t, uint8(1), ee.cc.cy, "sets parity flag to one")
-		})
-
-		t.Run("when result does not produce carry bit", func(t *testing.T) {
-			var result uint16 = 255
-			ee.cc.cy = 1
-			ee.cc.setCY(result)
-
-			assert.Zero(t, ee.cc.cy, "sets zero flag to zero")
-		})
 	})
 }
 
