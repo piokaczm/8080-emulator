@@ -67,6 +67,8 @@ func TestEmulation(t *testing.T) {
 		ee := New()
 		ee.b = 0x01
 		ee.c = 0x02
+		ee.mem[0] = 0x0a
+		ee.mem[0x0102] = 0xff
 
 		err := ee.Emulate()
 		assert.Nil(t, err)
@@ -106,6 +108,68 @@ func TestEmulation(t *testing.T) {
 		assert.Equal(t, uint8(0x00), ee.e, "sets 2nd byte to state's e")
 		assert.Equal(t, uint8(0x02), ee.d, "sets 3rd byte to state's d")
 		assert.Equal(t, uint16(3), ee.pc, "increments pc by three")
+	})
+
+	t.Run("when STAX D", func(t *testing.T) {
+		ee := New()
+		ee.mem[0] = 0x12
+		ee.a = 0x1f
+		ee.d = 0x01
+		ee.e = 0x02
+
+		err := ee.Emulate()
+		assert.Nil(t, err)
+		assert.Equal(t, ee.a, ee.mem[0x0102], "stores accumulator's value at memory address from registers d and e")
+		assert.Equal(t, uint16(1), ee.pc, "increments pc by one")
+	})
+
+	t.Run("when INX D", func(t *testing.T) {
+		ee := New()
+		ee.mem = []uint8{0x13}
+		ee.d = 0x00
+		ee.e = 0x01
+
+		err := ee.Emulate()
+		assert.Nil(t, err)
+		assert.Equal(t, uint8(0x01), ee.d, "increments register d by one")
+		assert.Equal(t, uint8(0x02), ee.e, "increments register e by one")
+		assert.Equal(t, uint16(1), ee.pc, "increments pc by one")
+	})
+
+	t.Run("when MVI D, D8", func(t *testing.T) {
+		ee := New()
+		ee.mem = []uint8{0x16, 0x1f}
+
+		err := ee.Emulate()
+		assert.Nil(t, err)
+		assert.Equal(t, uint8(0x1f), ee.d, "sets register c to 2nd byte")
+		assert.Equal(t, uint16(2), ee.pc, "increments pc by two")
+	})
+
+	t.Run("when LDAX D", func(t *testing.T) {
+		ee := New()
+		ee.d = 0x01
+		ee.e = 0x02
+		ee.mem[0] = 0x1a
+		ee.mem[0x0102] = 0xff
+
+		err := ee.Emulate()
+		assert.Nil(t, err)
+		assert.Equal(t, ee.mem[0x0102], ee.a, "loads value from memory addr stored in registers b and c to accumulator")
+		assert.Equal(t, uint16(1), ee.pc, "increments pc by one")
+	})
+
+	t.Run("when DCX D", func(t *testing.T) {
+		ee := New()
+		ee.mem = []uint8{0x1b}
+		ee.d = 0x00
+		ee.e = 0x01
+
+		err := ee.Emulate()
+		assert.Nil(t, err)
+		assert.Equal(t, uint8(0xff), ee.d, "decrements register d by one")
+		assert.Equal(t, uint8(0x00), ee.e, "decrements register e by one")
+		assert.Equal(t, uint16(1), ee.pc, "increments pc by one")
 	})
 }
 
