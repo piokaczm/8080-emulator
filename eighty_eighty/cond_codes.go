@@ -1,6 +1,8 @@
 package eighty_eighty
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type condCodes struct {
 	z   uint8 // zero flag -> if result of operation is equal to 0 it's set to 1

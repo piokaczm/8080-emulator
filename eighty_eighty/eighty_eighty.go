@@ -1,6 +1,8 @@
 package eighty_eighty
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	// registers fast access
@@ -60,8 +62,10 @@ func (s *state) Emulate() error {
 	case 0x06: // MVI B, D8
 		s.mvi(opCode[1], b)
 	case 0x07: // RLC
+		s.rlc(a)
 	case 0x08: // -
 	case 0x09: // DAD B
+		s.dad(bc)
 	case 0x0a: // LDAX B
 		s.ldax(bc)
 	case 0x0b: // DCX B
@@ -94,6 +98,33 @@ func (s *state) Emulate() error {
 	}
 
 	return nil
+}
+
+// dad "double adds" a 16bit value located in the provided registers pair and stores the result in
+// hl registers
+func (s *state) dad(regPair int) {
+	var result uint16
+
+	switch regPair {
+	case bc:
+		bcValue := (uint16(s.b) << 8) + uint16(s.c)
+		hlValue := (uint16(s.h) << 8) + uint16(s.l)
+	}
+
+	s.cc.setCY(result)
+}
+
+// rlc rotates accumulator left
+func (s *state) rlc(reg int) {
+	var result uint16
+	switch reg {
+	case a:
+		shiftedA := uint16(s.a) << 1
+		result = shiftedA | 1<<0
+		s.a = uint8(result)
+	}
+
+	s.cc.setCY(result)
 }
 
 // inr increments value of single register and sets proper Z, S and P condition codes

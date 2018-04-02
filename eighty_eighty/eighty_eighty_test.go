@@ -6,6 +6,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestRLC(t *testing.T) {
+	t.Run("rotating accumulator", func(t *testing.T) {
+		ee := New()
+		ee.a = 0x0a
+
+		ee.rlc(a)
+		assert.Equal(t, uint8(0x15), ee.a, "rotates accumulator one bit left")
+	})
+
+	t.Run("setting carry bit", func(t *testing.T) {
+		t.Run("when result requires carrying a bit", func(t *testing.T) {
+			ee := New()
+			ee.a = 0xff
+
+			ee.rlc(a)
+			assert.Equal(t, uint8(0xff), ee.a, "rotates accumulator one bit left")
+			assert.Equal(t, uint8(1), ee.cc.cy, "sets CY flag")
+		})
+
+		t.Run("when result does not require carrying a bit", func(t *testing.T) {
+			ee := New()
+			ee.a = 0x00
+
+			ee.rlc(a)
+			assert.Equal(t, uint8(0x01), ee.a, "rotates accumulator one bit left")
+			assert.Equal(t, uint8(0), ee.cc.cy, "does not set CY flag")
+		})
+	})
+}
+
 func TestINR(t *testing.T) {
 	t.Run("incrementing register", func(t *testing.T) {
 		ee := New()
